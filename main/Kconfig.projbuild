@@ -1,0 +1,27 @@
+menu "Sniffer Configuration"
+  config CHANNEL_HOPPER_FREQUENCY
+    int "The time in milliseconds between channel switches"
+    range 100 3000
+    default 1000
+    help
+      "No help :)"
+
+  config WIFI_SSID
+    string "The ssid to connect to"
+    default "CentralHub"
+    help
+      "No help for you :)"
+
+  config WIFI_PASSWORD
+    string "The password to use when connecting"
+    default ""
+    help
+      "No help for you :)"
+
+  config WIFI_RETRY_COUNT
+    int "How many times to retry if we lose wifi connection"
+    range 0 10
+    default 3
+    help
+      "No help :)"
+endmenu
