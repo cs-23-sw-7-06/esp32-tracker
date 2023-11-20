@@ -17,6 +17,9 @@ private:
   std::string m_response_data;
   int m_retry_count = 0;
 
+  bool m_exiting = false;
+  SemaphoreHandle_t m_exit_semaphore;
+
   static esp_err_t http_event_handler(esp_http_client_event_t *event);
 
   void internal_send();

@@ -10,7 +10,7 @@
 static const char *wifi_sniffer_tag = "wifi-sniffer";
 
 constexpr static auto channel_hopper_frequency =
-    CONFIG_CHANNEL_HOPPER_FREQUENCY; // ms
+    CONFIG_WIFI_SNIFFER_CHANNEL_HOPPER_FREQUENCY; // ms
 
 WifiSniffer *WifiSniffer::m_instance = nullptr;
 
@@ -126,7 +126,7 @@ void WifiSniffer::channel_hopper_task(void *parameters) {
         vTaskDelete(NULL);
       }
 
-      ESP_LOGI(wifi_sniffer_tag, "Switching channel to %d", channel);
+      ESP_LOGV(wifi_sniffer_tag, "Switching channel to %d", channel);
       esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
     }
   }

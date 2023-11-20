@@ -1,10 +1,4 @@
 menu "Sniffer Configuration"
-  config CHANNEL_HOPPER_FREQUENCY
-    int "The time in milliseconds between channel switches"
-    range 100 3000
-    default 1000
-    help
-      "No help :)"
 
   config WIFI_SSID
     string "The ssid to connect to"
@@ -24,4 +18,27 @@ menu "Sniffer Configuration"
     default 3
     help
       "No help :)"
+
+  config WIFI_SNIFFER_CHANNEL_HOPPER_FREQUENCY
+    int "The time in milliseconds between channel switches"
+    range 100 3000
+    default 1000
+    help
+      "No help :)"
+
+
+  config WIFI_SNIFFER_SNIFF_TIME
+    int "The time in milliseconds to sniff for packets"
+    range 500 20000
+    default 10000
+    help
+      "No help :)"
+
+  config BLUETOOTH_CLASSIC_SCANNER_SCAN_TIME
+    int "The time in milliseconds to scan for bluetooth classic devices"
+    range 500 20000
+    default 10000
+    help
+      "No help :)"
+
 endmenu
