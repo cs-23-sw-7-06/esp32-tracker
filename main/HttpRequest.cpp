@@ -7,6 +7,7 @@
 constexpr static auto http_tag = "http";
 
 HttpRequest::HttpRequest(const char *url, esp_http_client_method_t method) {
+  m_exit_semaphore = xSemaphoreCreateCounting(1, 0);
   esp_http_client_config_t config = {};
   config.url = url;
   config.event_handler = http_event_handler;
@@ -20,8 +21,10 @@ HttpRequest::HttpRequest(const char *url, esp_http_client_method_t method) {
 }
 
 HttpRequest::~HttpRequest() {
-  ESP_ERROR_CHECK(esp_http_client_set_user_data(m_handle, nullptr));
+  m_exiting = true;
   ESP_ERROR_CHECK(esp_http_client_cleanup(m_handle));
+  xSemaphoreTake(m_exit_semaphore, portMAX_DELAY);
+  vSemaphoreDelete(m_exit_semaphore);
 }
 
 void HttpRequest::internal_send() {
@@ -93,6 +96,9 @@ esp_err_t HttpRequest::http_event_handler(esp_http_client_event_t *event) {
     break;
   case HTTP_EVENT_DISCONNECTED:
     ESP_LOGI(http_tag, "HTTP_EVENT_DISCONNECTED");
+    if (instance->m_exiting) {
+      xSemaphoreGive(instance->m_exit_semaphore);
+    }
     break;
   }
   return ESP_OK;
