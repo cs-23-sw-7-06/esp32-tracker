@@ -2,10 +2,11 @@
 
 #include "sdkconfig.h"
 
+#include <string.h>
+
 #include <esp_err.h>
 #include <esp_event.h>
-#include <esp_http_client.h>
-#include <string.h>
+#include <esp_mac.h>
 
 constexpr static auto wifi_ssid = CONFIG_WIFI_SSID;
 constexpr static auto wifi_password = CONFIG_WIFI_PASSWORD;
@@ -33,7 +34,8 @@ void WifiConnection::wifi_ip_event_handler(void *arg,
     case WIFI_EVENT_STA_START:
       ESP_LOGI(wifi_tag, "WIFI STARTED");
       if (thiz->m_wifi_connection_state != WifiConnectionState::Starting) {
-        ESP_LOGE(wifi_tag, "WTF JUST HAPPENED!!?!!?!");
+        ESP_LOGE(wifi_tag, "WTF JUST HAPPENED!!?!!?! RESTARTING!!!!");
+        esp_restart();
         return;
       }
       ESP_ERROR_CHECK(esp_wifi_connect());
@@ -49,7 +51,8 @@ void WifiConnection::wifi_ip_event_handler(void *arg,
     case WIFI_EVENT_STA_DISCONNECTED:
       ESP_LOGI(wifi_tag, "WIFI_DISCONNECTED");
       if (thiz->m_wifi_connection_state != WifiConnectionState::Stopping) {
-        ESP_LOGE(wifi_tag, "WTF JUST HAPPENED!!?!!?!");
+        ESP_LOGE(wifi_tag, "WTF JUST HAPPENED!!?!!?! RESTARTING!!!!");
+        esp_restart();
         return;
       }
       ESP_ERROR_CHECK(esp_wifi_stop());
@@ -107,4 +110,12 @@ WifiConnection::~WifiConnection() {
   ESP_ERROR_CHECK(esp_event_handler_instance_unregister(
       WIFI_EVENT, ESP_EVENT_ANY_ID, m_wifi_event_handler_instance));
   vSemaphoreDelete(m_semaphore);
+}
+
+MacAddress WifiConnection::get_mac_address() {
+  MacAddress mac_address;
+  ESP_ERROR_CHECK(
+      esp_read_mac((uint8_t *)(void *)&mac_address, ESP_MAC_WIFI_STA));
+
+  return mac_address;
 }

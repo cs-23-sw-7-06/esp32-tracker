@@ -1,5 +1,7 @@
 #pragma once
 
+#include "wifi.hpp"
+
 #include <memory>
 
 #include <freertos/FreeRTOS.h>
@@ -34,4 +36,5 @@ public:
   ~WifiConnection();
 
   static void setup_wifi();
+  static MacAddress get_mac_address();
 };

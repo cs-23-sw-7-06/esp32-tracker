@@ -23,4 +23,6 @@ public:
   BluetoothClassicScanner();
   BluetoothClassicScanner(const BluetoothClassicScanner &) = delete;
   ~BluetoothClassicScanner();
+
+  static MacAddress get_mac_address();
 };

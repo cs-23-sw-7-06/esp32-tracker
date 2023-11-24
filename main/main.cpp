@@ -6,7 +6,6 @@
 
 #include "sdkconfig.h"
 
-#include "sdkconfig.h"
 #include <inttypes.h>
 
 #include <string.h>
@@ -18,6 +17,8 @@
 #include <esp_wifi.h>
 #include <nvs.h>
 #include <nvs_flash.h>
+
+#include <cJSON.h>
 
 static constexpr auto wifi_sniffer_sniff_time = CONFIG_WIFI_SNIFFER_SNIFF_TIME;
 
@@ -35,62 +36,127 @@ static void setup_nvs_flash() {
   ESP_ERROR_CHECK(ret);
 }
 
+static std::string serialize_localization_targets(
+    const std::vector<LocalizationTarget> &localization_targets,
+    int tracker_id) {
+  auto *json_object = cJSON_CreateObject();
+  cJSON_AddNumberToObject(json_object, "trackerId", tracker_id);
+  auto *json_measurements = cJSON_AddArrayToObject(json_object, "measurements");
+
+  for (const auto &target : localization_targets) {
+    const auto &address = target.m_mac_address;
+    char mac_address[128];
+    snprintf(mac_address, sizeof(mac_address), "%02x:%02x:%02x:%02x:%02x:%02x",
+             address.bytes[0], address.bytes[1], address.bytes[2],
+             address.bytes[3], address.bytes[4], address.bytes[5]);
+
+    auto *json_measurement_item = cJSON_CreateObject();
+    cJSON_AddStringToObject(json_measurement_item, "macAddress", mac_address);
+    cJSON_AddNumberToObject(json_measurement_item, "type",
+                            (int)target.m_sniffer_type);
+    cJSON_AddNumberToObject(json_measurement_item, "rssi", target.m_rssi);
+
+    cJSON_AddItemToArray(json_measurements, json_measurement_item);
+  }
+  auto *json_string = cJSON_Print(json_object);
+  std::string json_data{json_string};
+  free(json_string);
+
+  cJSON_Delete(json_object);
+
+  return json_data;
+}
+
 extern "C" void app_main(void) {
   setup_nvs_flash();
 
   esp_event_loop_create_default();
 
+  const auto wifi_mac_address = WifiConnection::get_mac_address();
+  const auto bluetooth_mac_address = BluetoothClassicScanner::get_mac_address();
+
   WifiConnection::setup_wifi();
 
   while (true) {
+    const auto freeHeap = xPortGetFreeHeapSize();
+    ESP_LOGI("main", "Free heap: %zuKB", freeHeap / 1000);
+    bool registered = false;
+    int tracker_id = -1;
+
     {
       WifiConnection connection;
 
-      {
-        HttpRequest createRoomRequest("http://10.0.0.1:8081/room/add",
-                                      HTTP_METHOD_POST);
-        const auto response = createRoomRequest.send_with_post_data(
-            R"(
-          { "RoomId": 0,
-            "Name": "Created from esp",
-            "Description": "Fuck you!"
-          })");
-        printf("%s\n", response.data());
-      }
+      do {
+        char url_string[256];
 
-      HttpRequest request{"http://10.0.0.1:8081/room/all", HTTP_METHOD_GET};
-      const auto str = request.send();
-      printf("%s\n", str.data());
+        snprintf(
+            url_string, sizeof(url_string),
+            "http://10.0.0.1:8081/tracker/registration/info"
+            "?wifiMacAddress=%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x"
+            "&bluetoothMacAddress=%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x",
+            wifi_mac_address.bytes[0], wifi_mac_address.bytes[1],
+            wifi_mac_address.bytes[2], wifi_mac_address.bytes[3],
+            wifi_mac_address.bytes[4], wifi_mac_address.bytes[5],
+            bluetooth_mac_address.bytes[0], bluetooth_mac_address.bytes[1],
+            bluetooth_mac_address.bytes[2], bluetooth_mac_address.bytes[3],
+            bluetooth_mac_address.bytes[4], bluetooth_mac_address.bytes[5]);
+
+        printf("%s", url_string);
+
+        HttpRequest getRegistrationInfoRequest(url_string, HTTP_METHOD_GET);
+        const auto responseText = getRegistrationInfoRequest.send();
+        printf("%s\n", responseText.data());
+
+        cJSON *json_root = cJSON_Parse(responseText.data());
+        cJSON *json_registered = cJSON_GetObjectItem(json_root, "registered");
+
+        registered = cJSON_IsTrue(json_registered);
+
+        if (registered) {
+          cJSON *json_tracker_id = cJSON_GetObjectItem(json_root, "trackerId");
+          tracker_id = cJSON_GetNumberValue(json_tracker_id);
+        }
+
+        cJSON_Delete(json_root);
+
+        if (!registered) {
+          ESP_LOGI("main", "We are not registered!");
+          vTaskDelay(5000 / portTICK_PERIOD_MS);
+        }
+      } while (!registered);
+
+      ESP_LOGI("main", "Registered! Tracker Id: %d", tracker_id);
     }
 
+    std::vector<LocalizationTarget> localization_targets;
     {
       WifiSniffer sniffer;
-      const auto localization_targets = sniffer.sniff(wifi_sniffer_sniff_time);
-      for (const auto &target : localization_targets) {
-        const auto &address = target.m_mac_address;
-        printf("mac: %02x:%02x:%02x:%02x:%02x:%02x type: %s rssi: %d\n",
-               address.bytes[0], address.bytes[1], address.bytes[2],
-               address.bytes[3], address.bytes[4], address.bytes[5],
-               target.m_sniffer_type == SnifferType::WiFi ? "WiFi"
-                                                          : "Bluetooth",
-               target.m_rssi);
-      }
+      localization_targets = sniffer.sniff(wifi_sniffer_sniff_time);
     }
 
     {
       BluetoothClassicScanner bluetooth_classic_scanner;
-      const auto localization_targets =
+      const auto bluetooth_localization_targets =
           bluetooth_classic_scanner.scan(bluetooth_classic_scanner_scan_time);
-      for (const auto &target : localization_targets) {
-        const auto &address = target.m_mac_address;
-        printf("mac: %02x:%02x:%02x:%02x:%02x:%02x type: %s rssi: %d\n",
-               address.bytes[0], address.bytes[1], address.bytes[2],
-               address.bytes[3], address.bytes[4], address.bytes[5],
-               target.m_sniffer_type == SnifferType::WiFi ? "WiFi"
-                                                          : "Bluetooth",
-               target.m_rssi);
-      }
+      localization_targets.insert(localization_targets.end(),
+                                  bluetooth_localization_targets.begin(),
+                                  bluetooth_localization_targets.end());
     }
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+    // Send this shite
+    {
+      const auto json_data =
+          serialize_localization_targets(localization_targets, tracker_id);
+      ESP_LOGI("main", "%s", json_data.c_str());
+
+      WifiConnection connection;
+
+      HttpRequest add_measurements_request{
+          "http://10.0.0.1:8081/localization/measurements/add",
+          HTTP_METHOD_POST};
+
+      auto response = add_measurements_request.send_with_post_data(json_data);
+      ESP_LOGI("main", "%s", response.c_str());
+    }
   }
 }
