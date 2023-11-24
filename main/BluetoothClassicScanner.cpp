@@ -6,6 +6,7 @@
 #include <esp_gap_ble_api.h>
 #include <esp_gattc_api.h>
 #include <esp_log.h>
+#include <esp_mac.h>
 
 static constexpr auto bt_tag = "bt-scan";
 
@@ -150,4 +151,11 @@ BluetoothClassicScanner::~BluetoothClassicScanner() {
   ESP_ERROR_CHECK(esp_bt_controller_deinit());
   vSemaphoreDelete(m_semaphore);
   m_instance = nullptr;
+}
+
+MacAddress BluetoothClassicScanner::get_mac_address() {
+  MacAddress mac_address;
+  ESP_ERROR_CHECK(esp_read_mac((uint8_t *)&mac_address, ESP_MAC_BT));
+
+  return mac_address;
 }
