@@ -115,26 +115,26 @@ std::unordered_set<int> WifiSniffer::scan_for_used_channels() {
 void WifiSniffer::channel_hopper_task(void *parameters) {
   const auto *thiz = (const WifiSniffer *)parameters;
 
-  while (true) {
-    for (const auto channel : thiz->m_channels) {
-      if (xSemaphoreTake(thiz->m_channel_hopper_should_exit_semaphore,
-                         channel_hopper_frequency / portTICK_PERIOD_MS) ==
-          pdTRUE) {
-        // Signal that it is safe to continue
-        xSemaphoreGive(thiz->m_channel_hopper_exited_semaphore);
-        // Stop this task
-        vTaskDelete(NULL);
-      }
+  const auto timeout_ms = thiz->m_timeout_ms;
+  const auto channel_num = thiz->m_channels.size();
 
-      ESP_LOGV(wifi_sniffer_tag, "Switching channel to %d", channel);
-      esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-    }
+  const auto delay_ms = timeout_ms / channel_num;
+
+  for (const auto channel : thiz->m_channels) {
+    ESP_LOGV(wifi_sniffer_tag, "Switching channel to %d", channel);
+    esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+
+    vTaskDelay(delay_ms / portTICK_PERIOD_MS);
   }
+
+  // Signal that it is safe to continue
+  xSemaphoreGive(thiz->m_channel_hopper_exited_semaphore);
+  // Stop this task
+  vTaskDelete(NULL);
 }
 
 WifiSniffer::WifiSniffer() {
   m_instance = this;
-  m_channel_hopper_should_exit_semaphore = xSemaphoreCreateCounting(1, 0);
   m_channel_hopper_exited_semaphore = xSemaphoreCreateCounting(1, 0);
 
   ESP_ERROR_CHECK(esp_wifi_start());
@@ -145,22 +145,16 @@ WifiSniffer::WifiSniffer() {
 WifiSniffer::~WifiSniffer() {
   ESP_ERROR_CHECK(esp_wifi_stop());
   vSemaphoreDelete(m_channel_hopper_exited_semaphore);
-  vSemaphoreDelete(m_channel_hopper_should_exit_semaphore);
   m_instance = nullptr;
 }
 
 std::vector<LocalizationTarget> WifiSniffer::sniff(int timeout_ms) {
+  m_timeout_ms = timeout_ms;
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
 
   // Create channel hopper task
   xTaskCreate(channel_hopper_task, "Channel Hopper", 2048, this,
               tskIDLE_PRIORITY, &m_channel_hopper_task);
-
-  // Sniff for this many miliseconds
-  vTaskDelay(timeout_ms / portTICK_PERIOD_MS);
-
-  // Tell the channel hopper to exit
-  xSemaphoreGive(m_channel_hopper_should_exit_semaphore);
 
   // Wait for channel hopper to exit
   xSemaphoreTake(m_channel_hopper_exited_semaphore, portMAX_DELAY);
