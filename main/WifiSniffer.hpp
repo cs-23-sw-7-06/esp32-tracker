@@ -20,6 +20,7 @@ private:
   // Channel hopper stuff
   static std::unordered_set<int> scan_for_used_channels();
   static void channel_hopper_task(void *parameters);
+  int m_timeout_ms;
   std::unordered_set<int> m_channels;
   TaskHandle_t m_channel_hopper_task;
   SemaphoreHandle_t m_channel_hopper_should_exit_semaphore;

@@ -152,7 +152,7 @@ extern "C" void app_main(void) {
       WifiConnection connection;
 
       HttpRequest add_measurements_request{
-          "http://10.0.0.1:8081/localization/measurements/add",
+          "http://10.0.0.1:8081/measurements/add",
           HTTP_METHOD_POST};
 
       auto response = add_measurements_request.send_with_post_data(json_data);
