@@ -9,9 +9,6 @@
 
 static const char *wifi_sniffer_tag = "wifi-sniffer";
 
-constexpr static auto channel_hopper_frequency =
-    CONFIG_WIFI_SNIFFER_CHANNEL_HOPPER_FREQUENCY; // ms
-
 WifiSniffer *WifiSniffer::m_instance = nullptr;
 
 void WifiSniffer::packet_callback(void *buf, wifi_promiscuous_pkt_type_t type) {

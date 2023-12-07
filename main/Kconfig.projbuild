@@ -19,13 +19,6 @@ menu "Sniffer Configuration"
     help
       "No help :)"
 
-  config WIFI_SNIFFER_CHANNEL_HOPPER_FREQUENCY
-    int "The time in milliseconds between channel switches"
-    range 100 3000
-    default 1000
-    help
-      "No help :)"
-
 
   config WIFI_SNIFFER_SNIFF_TIME
     int "The time in milliseconds to sniff for packets"
