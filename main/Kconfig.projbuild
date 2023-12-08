@@ -1,5 +1,18 @@
 menu "Sniffer Configuration"
 
+  config API_HOSTNAME
+    string "The hostname of the API endpoint (can be an IP address)"
+    default "10.0.0.1"
+    help
+      "Specify a hostname or an ip address"
+
+  config API_PORT
+    int "The port where the API endpoint is hosted"
+    range 1 65535
+    default 8081
+    help
+      "No help :)"
+
   config WIFI_SSID
     string "The ssid to connect to"
     default "CentralHub"

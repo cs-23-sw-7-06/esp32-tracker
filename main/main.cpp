@@ -20,6 +20,12 @@
 
 #include <cJSON.h>
 
+#define TO_STR(int) #int
+#define XTO_STR(int) TO_STR(int)
+
+#define API_HOSTNAME CONFIG_API_HOSTNAME
+#define API_PORT XTO_STR(CONFIG_API_PORT)
+
 static constexpr auto wifi_sniffer_sniff_time = CONFIG_WIFI_SNIFFER_SNIFF_TIME;
 
 static constexpr auto bluetooth_classic_scanner_scan_time =
@@ -91,7 +97,7 @@ extern "C" void app_main(void) {
 
         snprintf(
             url_string, sizeof(url_string),
-            "http://10.0.0.1:8081/tracker/registration/info"
+            "http://" API_HOSTNAME ":" API_PORT "/tracker/registration/info"
             "?wifiMacAddress=%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x"
             "&bluetoothMacAddress=%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x",
             wifi_mac_address.bytes[0], wifi_mac_address.bytes[1],
@@ -152,7 +158,7 @@ extern "C" void app_main(void) {
       WifiConnection connection;
 
       HttpRequest add_measurements_request{
-          "http://10.0.0.1:8081/measurements/add",
+          "http://" API_HOSTNAME ":" API_PORT "/measurements/add",
           HTTP_METHOD_POST};
 
       auto response = add_measurements_request.send_with_post_data(json_data);
