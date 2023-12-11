@@ -66,7 +66,6 @@ struct DataFrame {
   MacAddress receiver_address;
   MacAddress transmitter_address;
   MacAddress destination_address;
-  MacAddress source_address;
 
   bool toAP() const {
     auto masked_bits = frame_control.flags & 0b00000011;

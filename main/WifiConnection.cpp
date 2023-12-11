@@ -14,9 +14,6 @@ constexpr static auto wifi_retry_count = CONFIG_WIFI_RETRY_COUNT;
 
 constexpr static auto wifi_tag = "wifi";
 
-// FIXME: This sucks we should use a semaphore but it sucks
-volatile static bool handler_running = false;
-
 void WifiConnection::wifi_ip_event_handler(void *arg,
                                            esp_event_base_t event_base,
                                            int32_t event_id, void *event_data) {
@@ -25,7 +22,6 @@ void WifiConnection::wifi_ip_event_handler(void *arg,
     switch (event_id) {
     case IP_EVENT_STA_GOT_IP:
       ESP_LOGI(wifi_tag, "GOT IP!");
-      handler_running = false;
       thiz->m_wifi_connection_state = WifiConnectionState::Connected;
       xSemaphoreGive(thiz->m_semaphore);
     }

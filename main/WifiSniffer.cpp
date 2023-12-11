@@ -19,11 +19,14 @@ void WifiSniffer::packet_callback(void *buf, wifi_promiscuous_pkt_type_t type) {
     auto *management_frame = (ManagementFrame *)pkt->payload;
 
     switch ((ManagementSubType)management_frame->frame_control.subtype) {
-    // These are the only two that are only sent by localization target (eg. not
-    // an AP)
-    case ManagementSubType::AssociationRequest:
+    // These are the only ones that are only sent by localization targets
+    // (eg. not an AP)
     case ManagementSubType::ProbeRequest:
-      ESP_LOGI(wifi_sniffer_tag, "Got a Probe Request packet");
+    case ManagementSubType::AssociationRequest:
+    case ManagementSubType::ReassociationRequest:
+      ESP_LOGI(wifi_sniffer_tag, "Got a valid Management packet");
+
+      printf("Channel: %d\n", pkt->rx_ctrl.channel);
 
       printf("Destination address: ");
       print_mac_address(management_frame->destination_address);
@@ -65,9 +68,6 @@ void WifiSniffer::packet_callback(void *buf, wifi_promiscuous_pkt_type_t type) {
 
     printf("Destination address: ");
     print_mac_address(data_frame->destination_address);
-
-    printf("Source address: ");
-    print_mac_address(data_frame->source_address);
 
     m_instance->m_localization_targets.push_back(
         {data_frame->transmitter_address, SnifferType::WiFi,
